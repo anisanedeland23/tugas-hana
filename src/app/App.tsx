@@ -1682,24 +1682,50 @@ function InputTandaVital({
 }
 
 // ── Nurse: CURB-65 ────────────────────────────────────────────────────────────
-function CURB65() {
+function CURB65({
+  selectedPatient,
+}: {
+  selectedPatient: (typeof PATIENTS)[0];
+}) {
+  const systolic = Number(selectedPatient.vital.td.split("/")[0]);
+  const diastolic = Number(selectedPatient.vital.td.split("/")[1]);
+
+  const autoAge = selectedPatient.age >= 65;
+  const autoRespiratoryRate = Number(selectedPatient.vital.rr) >= 30;
+  const autoBloodPressure = systolic < 90 || diastolic <= 60;
+
   const [answers, setAnswers] = useState({
     c: false,
     u: false,
-    r: false,
-    b: false,
-    age: true,
+    r: autoRespiratoryRate,
+    b: autoBloodPressure,
+    age: autoAge,
   });
+
+  useEffect(() => {
+    setAnswers({
+      c: false,
+      u: false,
+      r: autoRespiratoryRate,
+      b: autoBloodPressure,
+      age: autoAge,
+    });
+  }, [selectedPatient.id, autoAge, autoRespiratoryRate, autoBloodPressure]);
+
   const score = Object.values(answers).filter(Boolean).length;
+
   const toggle = (k: keyof typeof answers) =>
     setAnswers((prev) => ({ ...prev, [k]: !prev[k] }));
+
   const risk = score <= 1 ? "low" : score === 2 ? "medium" : "high";
+
   const rec =
     score <= 1
       ? "Rawat Jalan"
       : score === 2
         ? "Pertimbangkan Rawat Inap"
         : "Rawat Inap Intensif";
+
   const recColor =
     risk === "low" ? "emerald" : risk === "medium" ? "amber" : "red";
 
@@ -1709,12 +1735,54 @@ function CURB65() {
         title="CURB-65 Scoring"
         sub="Penilaian tingkat keparahan pneumonia komunitas untuk menentukan tata laksana"
       />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-4">
           <Card className="p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  Pasien: {selectedPatient.name}
+                </h3>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {selectedPatient.id} · {selectedPatient.age} th ·{" "}
+                  {selectedPatient.gender}
+                </p>
+              </div>
+
+              <RiskBadge level={selectedPatient.risk} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <div className="text-xs text-muted-foreground mb-1">RR</div>
+                <div className="font-mono text-lg font-bold text-foreground">
+                  {selectedPatient.vital.rr}
+                </div>
+                <div className="text-xs text-muted-foreground">x/menit</div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <div className="text-xs text-muted-foreground mb-1">TD</div>
+                <div className="font-mono text-lg font-bold text-foreground">
+                  {selectedPatient.vital.td}
+                </div>
+                <div className="text-xs text-muted-foreground">mmHg</div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <div className="text-xs text-muted-foreground mb-1">Usia</div>
+                <div className="font-mono text-lg font-bold text-foreground">
+                  {selectedPatient.age}
+                </div>
+                <div className="text-xs text-muted-foreground">tahun</div>
+              </div>
+            </div>
+
             <h3 className="font-bold text-sm text-foreground mb-4">
               Kriteria Penilaian
             </h3>
+
             <div className="space-y-2.5">
               <Checkbox
                 label="C — Confusion (Kebingungan)"
@@ -1722,29 +1790,33 @@ function CURB65() {
                 onChange={() => toggle("c")}
                 sub="Kebingungan baru (disorientasi terhadap orang, tempat, atau waktu)"
               />
+
               <Checkbox
                 label="U — Uremia (BUN > 7 mmol/L)"
                 checked={answers.u}
                 onChange={() => toggle("u")}
                 sub="Blood urea nitrogen > 7 mmol/L atau urea > 19 mg/dL"
               />
+
               <Checkbox
                 label="R — Respiratory Rate ≥ 30 x/menit"
                 checked={answers.r}
                 onChange={() => toggle("r")}
-                sub="Laju napas ≥ 30 kali per menit saat istirahat"
+                sub={`Otomatis dari RR pasien: ${selectedPatient.vital.rr} x/menit`}
               />
+
               <Checkbox
                 label="B — Blood Pressure Rendah"
                 checked={answers.b}
                 onChange={() => toggle("b")}
-                sub="Sistolik < 90 mmHg atau diastolik ≤ 60 mmHg"
+                sub={`Otomatis dari tekanan darah pasien: ${selectedPatient.vital.td} mmHg`}
               />
+
               <Checkbox
                 label="65 — Usia ≥ 65 Tahun"
                 checked={answers.age}
                 onChange={() => toggle("age")}
-                sub="Pasien berusia 65 tahun atau lebih"
+                sub={`Otomatis dari usia pasien: ${selectedPatient.age} tahun`}
               />
             </div>
           </Card>
@@ -1755,6 +1827,7 @@ function CURB65() {
             <h3 className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-4">
               Hasil Kalkulasi
             </h3>
+
             <div className="text-center mb-5">
               <div
                 className={cn(
@@ -1768,10 +1841,12 @@ function CURB65() {
               >
                 {score}
               </div>
+
               <div className="text-xs text-muted-foreground mt-2">
                 dari 5 poin
               </div>
             </div>
+
             <div className="space-y-1 mb-5">
               {[0, 1, 2, 3, 4, 5].map((i) => (
                 <div
@@ -1789,6 +1864,7 @@ function CURB65() {
                 />
               ))}
             </div>
+
             <div
               className={cn(
                 "p-3 rounded-xl border text-center",
@@ -1811,6 +1887,7 @@ function CURB65() {
               >
                 <RiskBadge level={risk} />
               </div>
+
               <div
                 className={cn(
                   "text-sm font-bold mt-2",
@@ -1825,10 +1902,12 @@ function CURB65() {
               </div>
             </div>
           </Card>
+
           <Card className="p-4">
             <h3 className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-3">
               Panduan
             </h3>
+
             <div className="space-y-2">
               {[
                 ["0–1", "Rawat Jalan", "emerald"],
@@ -1858,6 +1937,7 @@ function CURB65() {
                   >
                     {sc}
                   </span>
+
                   <span
                     className={cn(
                       "text-xs font-medium",
@@ -4897,7 +4977,7 @@ export default function App() {
           />
         );
       case "curb65":
-        return <CURB65 />;
+        return <CURB65 selectedPatient={selectedPatient} />;
       case "laporan":
         return <LaporanAwal />;
       case "jadwal":
