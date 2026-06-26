@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   UserCheck,
@@ -781,12 +781,22 @@ function NurseDashboard() {
 }
 
 // ── Nurse: Verifikasi Data Pasien ─────────────────────────────────────────────
-function VerifikasiPasien() {
-  const [sel, setSel] = useState(0);
+function VerifikasiPasien({
+  patients,
+  selectedPatientId,
+  onSelectPatient,
+}: {
+  patients: typeof PATIENTS;
+  selectedPatientId: string;
+  onSelectPatient: (id: string) => void;
+}) {
   const [tab, setTab] = useState<"identitas" | "riwayat" | "keluhan">(
     "identitas",
   );
-  const p = PATIENTS[sel];
+
+  const p =
+    patients.find((patient) => patient.id === selectedPatientId) ?? patients[0];
+
   const [status, setStatus] = useState<
     null | "verified" | "rejected" | "revision"
   >(null);
@@ -797,23 +807,25 @@ function VerifikasiPasien() {
         title="Verifikasi Data Pasien"
         sub="Periksa dan validasi data pasien sebelum proses lebih lanjut"
       />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Patient list */}
         <Card className="p-4 lg:col-span-1">
           <h3 className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-3">
             Daftar Pasien
           </h3>
+
           <div className="space-y-1.5">
-            {PATIENTS.map((pt, i) => (
+            {patients.map((pt) => (
               <button
-                key={i}
+                key={pt.id}
                 onClick={() => {
-                  setSel(i);
+                  onSelectPatient(pt.id);
                   setStatus(null);
                 }}
                 className={cn(
                   "w-full text-left p-3 rounded-lg transition-all border",
-                  i === sel
+                  pt.id === selectedPatientId
                     ? "border-primary/30 bg-primary/5"
                     : "border-transparent hover:bg-muted/50",
                 )}
@@ -824,6 +836,7 @@ function VerifikasiPasien() {
                   </span>
                   <RiskBadge level={pt.risk} />
                 </div>
+
                 <div className="text-xs text-muted-foreground font-mono">
                   {pt.id} · {pt.age} th
                 </div>
@@ -867,11 +880,13 @@ function VerifikasiPasien() {
                   <FieldInput label="Jenis Kelamin" value={p.gender} readOnly />
                   <FieldInput label="Nomor HP" value={p.phone} readOnly />
                   <FieldInput label="BPJS / Asuransi" value={p.bpjs} readOnly />
+
                   <div className="col-span-2">
                     <FieldInput label="Alamat" value={p.address} readOnly />
                   </div>
                 </div>
               )}
+
               {tab === "riwayat" && (
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
@@ -906,6 +921,7 @@ function VerifikasiPasien() {
                   ))}
                 </div>
               )}
+
               {tab === "keluhan" && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2.5">
@@ -938,6 +954,7 @@ function VerifikasiPasien() {
                       </div>
                     ))}
                   </div>
+
                   <FieldInput
                     label="Durasi Gejala"
                     value={p.complaints.durasi}
@@ -973,10 +990,12 @@ function VerifikasiPasien() {
               <CheckCircle2 className="w-3.5 h-3.5" />
               Verifikasi Data
             </Btn>
+
             <Btn variant="danger" onClick={() => setStatus("rejected")}>
               <X className="w-3.5 h-3.5" />
               Tolak Data
             </Btn>
+
             <Btn variant="outline" onClick={() => setStatus("revision")}>
               <ArrowRight className="w-3.5 h-3.5" />
               Minta Perbaikan
@@ -1360,18 +1379,24 @@ function HasilAnalisisAI() {
 }
 
 // ── Nurse: Input Tanda Vital ──────────────────────────────────────────────────
-function InputTandaVital() {
-  const p = PATIENTS[0];
-  const [vals, setVals] = useState({
-    suhu: p.vital.suhu,
-    rr: p.vital.rr,
-    hr: p.vital.hr,
-    spo2: p.vital.spo2,
-    td: p.vital.td,
-    bb: p.vital.bb,
-    tb: p.vital.tb,
-  });
+function InputTandaVital({
+  selectedPatient,
+  onUpdatePatientVital,
+}: {
+  selectedPatient: (typeof PATIENTS)[0];
+  onUpdatePatientVital: (
+    patientId: string,
+    vital: (typeof PATIENTS)[0]["vital"],
+  ) => void;
+}) {
+  const [vals, setVals] = useState(selectedPatient.vital);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setVals(selectedPatient.vital);
+    setSaved(false);
+  }, [selectedPatient]);
+
   const set = (k: keyof typeof vals) => (v: string) =>
     setVals((prev) => ({ ...prev, [k]: v }));
 
@@ -1386,17 +1411,26 @@ function InputTandaVital() {
         title="Input Tanda Vital"
         sub="Catat tanda-tanda vital pasien sebelum pemeriksaan dokter"
       />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2">
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-sm text-foreground">
-                Pasien: Budi Santoso
-              </h3>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  Pasien: {selectedPatient.name}
+                </h3>
+                <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {selectedPatient.id} · {selectedPatient.age} th ·{" "}
+                  {selectedPatient.gender}
+                </div>
+              </div>
+
               <div className="text-xs text-muted-foreground font-mono">
                 25 Jun 2024 · 09:15
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div
                 className={cn(
@@ -1415,22 +1449,26 @@ function InputTandaVital() {
                         : "text-muted-foreground",
                     )}
                   />
+
                   <span className="text-xs font-semibold text-muted-foreground">
                     Suhu Tubuh
                   </span>
                 </div>
+
                 <FieldInput
                   label=""
                   value={vals.suhu}
                   onChange={set("suhu")}
                   unit="°C"
                 />
+
                 {parseFloat(vals.suhu) > 38.5 && (
                   <p className="text-xs text-red-600 mt-1.5 font-medium">
                     ⚠ Demam tinggi
                   </p>
                 )}
               </div>
+
               <div
                 className={cn(
                   "p-3 rounded-xl border",
@@ -1448,22 +1486,26 @@ function InputTandaVital() {
                         : "text-muted-foreground",
                     )}
                   />
+
                   <span className="text-xs font-semibold text-muted-foreground">
                     Respiratory Rate
                   </span>
                 </div>
+
                 <FieldInput
                   label=""
                   value={vals.rr}
                   onChange={set("rr")}
                   unit="x/mnt"
                 />
+
                 {parseInt(vals.rr) >= 25 && (
                   <p className="text-xs text-red-600 mt-1.5 font-medium">
                     ⚠ Takipnea
                   </p>
                 )}
               </div>
+
               <div className="p-3 rounded-xl border border-border bg-muted/20">
                 <div className="flex items-center gap-2 mb-2">
                   <HeartPulse className="w-4 h-4 text-muted-foreground" />
@@ -1471,6 +1513,7 @@ function InputTandaVital() {
                     Heart Rate
                   </span>
                 </div>
+
                 <FieldInput
                   label=""
                   value={vals.hr}
@@ -1478,6 +1521,7 @@ function InputTandaVital() {
                   unit="bpm"
                 />
               </div>
+
               <div
                 className={cn(
                   "p-3 rounded-xl border",
@@ -1495,22 +1539,26 @@ function InputTandaVital() {
                         : "text-muted-foreground",
                     )}
                   />
+
                   <span className="text-xs font-semibold text-muted-foreground">
                     Saturasi O₂ (SpO₂)
                   </span>
                 </div>
+
                 <FieldInput
                   label=""
                   value={vals.spo2}
                   onChange={set("spo2")}
                   unit="%"
                 />
+
                 {parseFloat(vals.spo2) < 92 && (
                   <p className="text-xs text-red-600 mt-1.5 font-medium">
                     ⚠ Hipoksemia
                   </p>
                 )}
               </div>
+
               <div className="p-3 rounded-xl border border-border bg-muted/20">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="w-4 h-4 text-muted-foreground" />
@@ -1518,6 +1566,7 @@ function InputTandaVital() {
                     Tekanan Darah
                   </span>
                 </div>
+
                 <FieldInput
                   label=""
                   value={vals.td}
@@ -1525,6 +1574,7 @@ function InputTandaVital() {
                   unit="mmHg"
                 />
               </div>
+
               <div className="p-3 rounded-xl border border-border bg-muted/20">
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingUp className="w-4 h-4 text-muted-foreground" />
@@ -1532,6 +1582,7 @@ function InputTandaVital() {
                     Berat / Tinggi Badan
                   </span>
                 </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <FieldInput
                     label=""
@@ -1539,6 +1590,7 @@ function InputTandaVital() {
                     onChange={set("bb")}
                     unit="kg"
                   />
+
                   <FieldInput
                     label=""
                     value={vals.tb}
@@ -1548,6 +1600,7 @@ function InputTandaVital() {
                 </div>
               </div>
             </div>
+
             {isCritical && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
@@ -1557,25 +1610,35 @@ function InputTandaVital() {
                 </p>
               </div>
             )}
+
             {saved && (
               <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-medium text-emerald-700 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4" />
-                Tanda vital berhasil disimpan
+                Tanda vital berhasil disimpan untuk {selectedPatient.name}
               </div>
             )}
+
             <div className="mt-4">
-              <Btn variant="primary" onClick={() => setSaved(true)}>
+              <Btn
+                variant="primary"
+                onClick={() => {
+                  onUpdatePatientVital(selectedPatient.id, vals);
+                  setSaved(true);
+                }}
+              >
                 <Save className="w-3.5 h-3.5" />
                 Simpan Tanda Vital
               </Btn>
             </div>
           </Card>
         </div>
+
         <div className="space-y-4">
           <Card className="p-4">
             <h3 className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-3">
               Panduan Nilai Normal
             </h3>
+
             <div className="space-y-2">
               {[
                 ["Suhu", "36.5 – 37.5°C"],
@@ -1591,6 +1654,25 @@ function InputTandaVital() {
                   </span>
                 </div>
               ))}
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-3">
+              Pasien Aktif
+            </h3>
+
+            <div className="space-y-1.5">
+              <div className="text-sm font-bold text-foreground">
+                {selectedPatient.name}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">
+                {selectedPatient.id}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {selectedPatient.age} th · {selectedPatient.gender}
+              </div>
+              <RiskBadge level={selectedPatient.risk} />
             </div>
           </Card>
         </div>
@@ -4746,6 +4828,14 @@ export default function App() {
   const [nurseView, setNurseView] = useState<NurseView>("dashboard");
   const [doctorView, setDoctorView] = useState<DoctorView>("dashboard");
 
+  const [patients, setPatients] = useState(PATIENTS);
+  const [selectedPatientId, setSelectedPatientId] = useState(
+    PATIENTS[0]?.id ?? "",
+  );
+
+  const selectedPatient =
+    patients.find((patient) => patient.id === selectedPatientId) ?? patients[0];
+
   if (!session)
     return (
       <LoginPage
@@ -4777,13 +4867,35 @@ export default function App() {
       case "dashboard":
         return <NurseDashboard />;
       case "verifikasi":
-        return <VerifikasiPasien />;
+        return (
+          <VerifikasiPasien
+            patients={patients}
+            selectedPatientId={selectedPatientId}
+            onSelectPatient={setSelectedPatientId}
+          />
+        );
       case "xray":
         return <XRayScanner />;
       case "ai-hasil":
         return <HasilAnalisisAI />;
       case "vital":
-        return <InputTandaVital />;
+        return (
+          <InputTandaVital
+            selectedPatient={selectedPatient}
+            onUpdatePatientVital={(patientId, vital) => {
+              setPatients((prev) =>
+                prev.map((patient) =>
+                  patient.id === patientId
+                    ? {
+                        ...patient,
+                        vital,
+                      }
+                    : patient,
+                ),
+              );
+            }}
+          />
+        );
       case "curb65":
         return <CURB65 />;
       case "laporan":
